@@ -1,7 +1,25 @@
 # Démonstration CI : échec sur CVE (rouge) → correction (vert)
 
-Le sujet demande de faire **échouer volontairement** le pipeline sur une
-vulnérabilité, puis de le **corriger**. Deux méthodes au choix.
+## Ce qui a réellement été fait dans ce rendu
+
+Le scan Trivy a détecté de **vraies CVE HIGH** (run #2, rouge) :
+- côté OS : `libssl3` / `libcrypto3` (Alpine) ;
+- côté Node : `tar`, `glob`, `minimatch`, `cross-spawn`, embarqués dans le CLI
+  **npm** présent dans l'image de base `node:20-alpine` (pas dans nos
+  dépendances applicatives).
+
+**Correction (run #3, vert)** dans `backend/Dockerfile` :
+- `RUN apk upgrade --no-cache` → corrige les CVE des paquets système ;
+- suppression du CLI npm de l'image finale (inutile au runtime, lancé par
+  `node`) → supprime les CVE de `tar`/`glob`/`minimatch`/`cross-spawn` et réduit
+  la surface d'attaque.
+
+C'est un échec/correction **authentique**. Les méthodes ci-dessous sont des
+alternatives « volontaires » si l'on veut reproduire la démo à la demande.
+
+---
+
+## Méthodes alternatives pour forcer un échec
 
 ## Méthode recommandée : dépendance vulnérable
 

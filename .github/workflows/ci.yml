@@ -61,16 +61,14 @@ jobs:
       - name: Build de l'image backend
         run: docker build -t ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} ./backend
 
+      # Installation de Trivy via le script officiel (binaire dans /usr/local/bin)
+      - name: Installer Trivy
+        run: curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+
       # Trivy scanne l'image construite. --exit-code 1 fait ÉCHOUER le job
-      # dès qu'une vulnérabilité HIGH ou CRITICAL est trouvée.
+      # dès qu'une vulnérabilité HIGH ou CRITICAL (avec correctif) est trouvée.
       - name: Scan de l'image avec Trivy
-        uses: aquasecurity/trivy-action@0.24.0
-        with:
-          image-ref: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-          format: table
-          severity: HIGH,CRITICAL
-          exit-code: "1"
-          ignore-unfixed: true   # ignore les CVE sans correctif disponible
+        run: trivy image --severity HIGH,CRITICAL --exit-code 1 --ignore-unfixed ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
   # --------------------------------------------------------------------------
   # BONUS (CD) : push de l'image, derrière une approbation manuelle.

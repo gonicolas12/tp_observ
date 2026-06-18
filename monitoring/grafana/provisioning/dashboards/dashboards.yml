@@ -1,0 +1,21 @@
+# ============================================================================
+# Provisioning des dashboards Grafana
+# ----------------------------------------------------------------------------
+# Grafana charge automatiquement tous les fichiers .json trouvés dans le
+# dossier indiqué (path). On y dépose notre dashboard TaskBoard, et on peut
+# aussi y déposer le JSON du "Node Exporter Full" (ID 1860) exporté depuis
+# grafana.com pour qu'il soit chargé sans import manuel.
+# ============================================================================
+
+apiVersion: 1
+
+providers:
+  - name: "TaskBoard dashboards"
+    orgId: 1
+    folder: ""                 # dossier racine
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards

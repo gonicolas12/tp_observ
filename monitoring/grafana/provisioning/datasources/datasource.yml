@@ -1,0 +1,16 @@
+# ============================================================================
+# Provisioning de la datasource Grafana
+# ----------------------------------------------------------------------------
+# Ce fichier est lu automatiquement au démarrage de Grafana : la source de
+# données Prometheus est créée sans intervention manuelle.
+# ============================================================================
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy                 # Grafana interroge Prometheus côté serveur
+    url: http://prometheus:9090   # nom du service dans docker-compose
+    isDefault: true
+    editable: true

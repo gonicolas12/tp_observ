@@ -1,0 +1,45 @@
+# ============================================================================
+# Configuration principale de Prometheus
+# ----------------------------------------------------------------------------
+# Prometheus "scrape" (interroge) périodiquement les cibles déclarées plus bas,
+# stocke les métriques, évalue les règles d'alerte et transmet les alertes
+# actives à Alertmanager.
+# ============================================================================
+
+global:
+  scrape_interval: 15s       # fréquence d'interrogation des cibles par défaut
+  evaluation_interval: 15s   # fréquence d'évaluation des règles d'alerte
+
+# --- Connexion à Alertmanager ------------------------------------------------
+# Les alertes qui passent à l'état "firing" sont poussées vers ce service.
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093   # nom du service dans docker-compose
+
+# --- Fichiers de règles d'alerte ---------------------------------------------
+rule_files:
+  - /etc/prometheus/rules/alerts.yml
+
+# --- Cibles à scraper --------------------------------------------------------
+scrape_configs:
+  # Prometheus se surveille lui-même
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # node_exporter : métriques de la machine hôte (CPU, RAM, disque, réseau)
+  - job_name: node
+    static_configs:
+      - targets: ["node-exporter:9100"]
+
+  # cAdvisor : métriques des conteneurs Docker (utile pour voir TaskBoard)
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["cadvisor:8080"]
+
+  # Alertmanager : on surveille aussi le composant d'alerting lui-même
+  - job_name: alertmanager
+    static_configs:
+      - targets: ["alertmanager:9093"]

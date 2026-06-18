@@ -1,0 +1,50 @@
+# ============================================================================
+# Règles d'alerte Prometheus
+# ----------------------------------------------------------------------------
+# Chaque règle définit une condition (expr PromQL). Si elle est vraie pendant
+# la durée "for", l'alerte passe en "firing" et est envoyée à Alertmanager,
+# qui la route vers les receivers (mail + Discord).
+# ============================================================================
+
+groups:
+  - name: taskboard-infra
+    rules:
+      # ----------------------------------------------------------------------
+      # 1) node_exporter injoignable -> la cible "node" est DOWN.
+      #    C'est l'alerte "preuve" : on arrête le conteneur node-exporter et
+      #    elle se déclenche au bout de 1 minute.
+      # ----------------------------------------------------------------------
+      - alert: NodeExporterDown
+        expr: up{job="node"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "node_exporter est DOWN ({{ $labels.instance }})"
+          description: "La cible node_exporter ne répond plus depuis 1 minute. Métriques machine indisponibles."
+
+      # ----------------------------------------------------------------------
+      # 2) Charge CPU élevée. Seuil volontairement bas (70 %) pour pouvoir le
+      #    déclencher facilement, ou abaissez-le encore pour la démonstration.
+      #    100 - (moyenne du temps CPU "idle" sur 5 min) = % CPU utilisé.
+      # ----------------------------------------------------------------------
+      - alert: HighCpuLoad
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 70
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU élevé sur {{ $labels.instance }}"
+          description: "Utilisation CPU à {{ printf \"%.1f\" $value }} % depuis plus de 2 minutes (seuil 70 %)."
+
+      # ----------------------------------------------------------------------
+      # 3) Mémoire disponible faible (< 15 %).
+      # ----------------------------------------------------------------------
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 < 15
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Mémoire faible sur {{ $labels.instance }}"
+          description: "Il reste {{ printf \"%.1f\" $value }} % de RAM disponible (seuil 15 %)."

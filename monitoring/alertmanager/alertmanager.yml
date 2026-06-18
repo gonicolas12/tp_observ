@@ -1,0 +1,39 @@
+# ============================================================================
+# Configuration d'Alertmanager
+# ----------------------------------------------------------------------------
+# Alertmanager reçoit les alertes de Prometheus, les regroupe (group_by) et
+# les route vers des "receivers". Ici un seul receiver "mail-et-discord" qui
+# notifie SIMULTANÉMENT par e-mail (via MailHog) ET sur Discord (webhook).
+#
+# NOTE : discord_configs nécessite Alertmanager >= v0.25. On utilise v0.27.
+# ============================================================================
+
+global:
+  resolve_timeout: 1m
+  # --- Paramètres SMTP par défaut (cible = MailHog, faux serveur SMTP) -------
+  smtp_smarthost: "mailhog:1025"          # MailHog écoute le SMTP sur 1025
+  smtp_from: "alertmanager@taskboard.local"
+  smtp_require_tls: false                 # MailHog ne fait pas de TLS
+
+# --- Arbre de routage --------------------------------------------------------
+route:
+  receiver: "mail-et-discord"   # receiver par défaut : tout part vers les 2 canaux
+  group_by: ["alertname"]       # on regroupe les alertes de même nom
+  group_wait: 10s               # attente avant le 1er envoi d'un nouveau groupe
+  group_interval: 30s           # attente avant d'envoyer les nouvelles alertes d'un groupe
+  repeat_interval: 1h           # ré-émission d'une alerte toujours active
+
+# --- Receivers ---------------------------------------------------------------
+receivers:
+  - name: "mail-et-discord"
+
+    # 1) E-mail : capturé par MailHog (UI sur http://localhost:8025)
+    email_configs:
+      - to: "equipe-ops@taskboard.local"
+        send_resolved: true     # notifie aussi quand l'alerte se résout
+
+    # 2) Discord : webhook d'un salon (Paramètres du salon > Intégrations > Webhooks)
+    #    >>> REMPLACEZ l'URL ci-dessous par VOTRE webhook Discord <<<
+    discord_configs:
+      - webhook_url: "https://discord.com/api/webhooks/REMPLACEZ_MOI/PAR_VOTRE_WEBHOOK"
+        send_resolved: true

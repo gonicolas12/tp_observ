@@ -1,0 +1,97 @@
+# ============================================================================
+# Stack de supervision : Prometheus + node_exporter + cAdvisor + Grafana
+#                        + Alertmanager + MailHog
+# ----------------------------------------------------------------------------
+# Lancement depuis le dossier monitoring/ :
+#     docker compose -f docker-compose.monitoring.yml up -d
+#
+# UIs :  Prometheus  http://localhost:9090   (Status > Targets pour voir UP)
+#        Grafana     http://localhost:3001   (admin / admin)
+#        Alertmanager http://localhost:9093
+#        MailHog     http://localhost:8025   (mails capturés)
+# ============================================================================
+
+services:
+  # --- Prometheus : collecte et stockage des métriques, évaluation des alertes
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: monitoring-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  # --- node_exporter : métriques de la machine (CPU, RAM, disque, réseau)
+  # NB : sur Docker Desktop (Windows/Mac), Docker tourne dans une VM Linux.
+  # On expose donc les métriques de cette VM (pas de l'hôte Windows), ce qui
+  # suffit pour le TP. On évite le montage de "/" en rslave, non supporté ici.
+  node-exporter:
+    image: prom/node-exporter:v1.8.1
+    container_name: monitoring-node-exporter
+    ports:
+      - "9100:9100"
+    restart: unless-stopped
+
+  # --- cAdvisor : métriques des conteneurs Docker (pour visualiser TaskBoard)
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: monitoring-cadvisor
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    ports:
+      - "8081:8080"   # 8081 côté hôte pour ne pas entrer en conflit
+    restart: unless-stopped
+
+  # --- Grafana : visualisation (datasource + dashboards auto-provisionnés)
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: monitoring-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"   # 3001 côté hôte : le 3000 est pris par taskboard-backend
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # --- Alertmanager : routage des alertes vers mail + Discord
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: monitoring-alertmanager
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - "9093:9093"
+    depends_on:
+      - mailhog
+    restart: unless-stopped
+
+  # --- MailHog : faux serveur SMTP qui capture les mails dans une UI web
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: monitoring-mailhog
+    ports:
+      - "1025:1025"   # SMTP (cible d'Alertmanager)
+      - "8025:8025"   # UI web pour lire les mails capturés
+    restart: unless-stopped
+
+volumes:
+  prometheus_data:
+  grafana_data:
